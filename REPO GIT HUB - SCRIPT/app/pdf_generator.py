@@ -161,3 +161,22 @@ class PDFGenerator:
         doc.build(story)
         buffer.seek(0)
         return buffer
+        # ... (resto del código igual)
+
+        # Logo - con mejor manejo de errores y logging
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "img", "logo.png")
+        print(f"Buscando logo en: {logo_path}")  # Para debugging
+        
+        if os.path.exists(logo_path):
+            try:
+                im = Image(logo_path, width=80*mm, height=25*mm)
+                im.hAlign = 'CENTER'
+                story.append(im)
+            except Exception as e:
+                print(f"Error al cargar el logo: {str(e)}")
+        else:
+            print(f"Logo no encontrado en {logo_path}")
+            # Opcional: Añadir un espacio o texto en lugar del logo
+            story.append(Spacer(1, 25*mm))
+
+# ... (resto del código igual)
