@@ -28,8 +28,7 @@ class PDFGenerator:
         story = []
         styles = getSampleStyleSheet()
 
-        # Título dinámico (FACTURA o PRESUPUESTO)
-        tipo_doc = "PRESUPUESTO" if data.get('tipo_documento') == 'presupuesto' else "FACTURA"
+        # Título FACTURA
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Normal'],
@@ -37,7 +36,7 @@ class PDFGenerator:
             alignment=1,
             spaceAfter=10*mm
         )
-        story.append(Paragraph(tipo_doc, title_style))
+        story.append(Paragraph("FACTURA", title_style))
         
         # Línea horizontal después del título
         grey_line1 = Table([['']], colWidths=[170*mm], rowHeights=[0.5])
@@ -128,7 +127,24 @@ class PDFGenerator:
             ('FONTSIZE', (0, 0), (-1, -1), 10),
         ]))
         story.append(totals_table)
-
+        
+        # Agregar cuadro de observaciones
+        # Se toma el valor enviado en el JSON o se muestra "Sin observaciones" por defecto.
+        observaciones_text = data.get("observaciones", "Sin observaciones")
+        obs_text = "<b>Observaciones:</b><br/>" + observaciones_text
+        obs_table = Table([[Paragraph(obs_text, styles["Normal"])]], colWidths=[170*mm])
+        obs_table.setStyle(TableStyle([
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+        story.append(Spacer(1, 10*mm))
+        story.append(obs_table)
+        story.append(Spacer(1, 10*mm))
+        
         # Espacio antes de los datos de contacto
         story.append(Spacer(1, 50*mm))
 
