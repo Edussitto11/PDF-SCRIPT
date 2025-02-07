@@ -28,7 +28,7 @@ class PDFGenerator:
         story = []
         styles = getSampleStyleSheet()
 
-        # Título FACTURA
+        # Definir el título según el tipo de documento
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Normal'],
@@ -36,7 +36,12 @@ class PDFGenerator:
             alignment=1,
             spaceAfter=10*mm
         )
-        story.append(Paragraph("FACTURA", title_style))
+        tipo_doc = data.get("tipo_documento", "").lower()
+        if tipo_doc == "presupuesto":
+            doc_title = "PRESUPUESTO"
+        else:
+            doc_title = "FACTURA"
+        story.append(Paragraph(doc_title, title_style))
         
         # Línea horizontal después del título
         grey_line1 = Table([['']], colWidths=[170*mm], rowHeights=[0.5])
@@ -54,7 +59,7 @@ class PDFGenerator:
             im.hAlign = 'CENTER'
             story.append(im)
         
-        # Dirección empresa
+        # Dirección de la empresa
         address_style = ParagraphStyle(
             'Address',
             parent=styles['Normal'],
@@ -63,7 +68,7 @@ class PDFGenerator:
             textColor=colors.gray,
             spaceAfter=5*mm
         )
-        story.append(Paragraph("David Cervera, cervantes 22, 46191 valencia, España", address_style))
+        story.append(Paragraph("David Cervera, cervantes 22, 46191 Valencia, España", address_style))
         
         # Línea horizontal después de la dirección
         grey_line2 = Table([['']], colWidths=[170*mm], rowHeights=[0.5])
@@ -74,14 +79,28 @@ class PDFGenerator:
         story.append(grey_line2)
         story.append(Spacer(1, 10*mm))
 
-        # Información del cliente
-        data_table = [
-            ['Cliente:', data['cliente']['nombre'], 'NºFactura:', data['factura']['numero']],
-            ['Dirección:', data['cliente']['direccion'].split('\n')[0], 'Fecha emisión:', data['factura']['fecha_emision']],
-            ['', data['cliente']['direccion'].split('\n')[1], 'Vencimiento:', data['factura']['fecha_vencimiento']],
-            ['CIF/NIF:', data['cliente']['DNI'], '', '']
-        ]
-        
+        # Adaptar la información del cliente
+        # En el JSON la dirección es un objeto, por lo que extraemos sus campos:
+        direccion = data['cliente']['direccion']
+        calle = direccion.get("calle_y_numeros", "")
+        municipio = direccion.get("municipio", "")
+        # Puedes agregar otros campos como "codigo_postal" o "provincia" si lo deseas
+
+        if doc_title == "FACTURA":
+            data_table = [
+                ['Cliente:', data['cliente']['nombre'], 'NºFactura:', data['factura'].get('numero', '')],
+                ['Dirección:', calle, 'Fecha emisión:', data['factura']['fecha_emision']],
+                ['Municipio:', municipio, 'Vencimiento:', data['factura']['fecha_vencimiento']],
+                ['CIF/NIF:', data['cliente']['DNI'], '', '']
+            ]
+        else:  # Para presupuesto, se puede omitir el número de factura u otros campos
+            data_table = [
+                ['Cliente:', data['cliente']['nombre'], 'Fecha emisión:', data['factura']['fecha_emision']],
+                ['Dirección:', calle, 'Vencimiento:', data['factura']['fecha_vencimiento']],
+                ['Municipio:', municipio, '', ''],
+                ['CIF/NIF:', data['cliente']['DNI'], '', '']
+            ]
+            
         client_table = Table(data_table, colWidths=[20*mm, 80*mm, 30*mm, 40*mm])
         client_table.setStyle(TableStyle([
             ('FONTSIZE', (0, 0), (-1, -1), 10),
@@ -112,7 +131,7 @@ class PDFGenerator:
         story.append(items_table)
         story.append(Spacer(1, 10*mm))
 
-        # Totales
+        # Totales (si en presupuesto se requiere otro cálculo, puedes modificarlo aquí)
         iva = total * 0.21
         total_con_iva = total + iva
         totals_data = [
@@ -129,7 +148,6 @@ class PDFGenerator:
         story.append(totals_table)
         
         # Agregar cuadro de observaciones
-        # Se toma el valor enviado en el JSON o se muestra "Sin observaciones" por defecto.
         observaciones_text = data.get("observaciones", "Sin observaciones")
         obs_text = "<b>Observaciones:</b><br/>" + observaciones_text
         obs_table = Table([[Paragraph(obs_text, styles["Normal"])]], colWidths=[170*mm])
@@ -159,8 +177,8 @@ class PDFGenerator:
 
         # Datos de contacto en tres líneas separadas
         contact_data = [
-            ['David Cervera, cervantes 22, 46191 valencia, España', 'CIF/NIF: 73659624P', 'Persona de contacto David Cervera', 'Móvil 684022975'],
-            ['E-mail davidcerverausedo@hotmail.com', 'Titular de la cuenta: David Cervera', 'Banco: CaixaBank', ''],
+            ['David Cervera, cervantes 22, 46191 Valencia, España', 'CIF/NIF: 73659624P', 'Persona de contacto: David Cervera', 'Móvil: 684022975'],
+            ['E-mail: davidcerverausedo@hotmail.com', 'Titular de la cuenta: David Cervera', 'Banco: CaixaBank', ''],
             ['IBAN: ES14 2100 7915 1713 0019 4098', '', '', '']
         ]
         
