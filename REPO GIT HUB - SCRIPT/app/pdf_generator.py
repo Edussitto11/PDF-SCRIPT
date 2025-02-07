@@ -13,6 +13,10 @@ class PDFGenerator:
         self.width, self.height = A4
 
     def generate_invoice(self, data):
+        # Si data es una lista, tomar el primer elemento
+        if isinstance(data, list):
+            data = data[0]
+
         # Crear buffer en memoria
         buffer = BytesIO()
         
@@ -80,25 +84,32 @@ class PDFGenerator:
         story.append(Spacer(1, 10*mm))
 
         # Adaptar la información del cliente
-        # En el JSON la dirección es un objeto, por lo que extraemos sus campos:
-        direccion = data['cliente']['direccion']
-        calle = direccion.get("calle_y_numeros", "")
-        municipio = direccion.get("municipio", "")
-        # Puedes agregar otros campos como "codigo_postal" o "provincia" si lo deseas
+        # Verificar que la dirección sea un dict; si es un string, se intenta dividir en líneas.
+        direccion = data['cliente'].get('direccion', "")
+        if isinstance(direccion, dict):
+            calle = direccion.get("calle_y_numeros", "")
+            municipio = direccion.get("municipio", "")
+        elif isinstance(direccion, str):
+            lines = direccion.split('\n')
+            calle = lines[0] if len(lines) > 0 else ""
+            municipio = lines[1] if len(lines) > 1 else ""
+        else:
+            calle = ""
+            municipio = ""
 
         if doc_title == "FACTURA":
             data_table = [
-                ['Cliente:', data['cliente']['nombre'], 'NºFactura:', data['factura'].get('numero', '')],
-                ['Dirección:', calle, 'Fecha emisión:', data['factura']['fecha_emision']],
-                ['Municipio:', municipio, 'Vencimiento:', data['factura']['fecha_vencimiento']],
-                ['CIF/NIF:', data['cliente']['DNI'], '', '']
+                ['Cliente:', data['cliente'].get('nombre', ""), 'NºFactura:', data['factura'].get('numero', '')],
+                ['Dirección:', calle, 'Fecha emisión:', data['factura'].get('fecha_emision', '')],
+                ['Municipio:', municipio, 'Vencimiento:', data['factura'].get('fecha_vencimiento', '')],
+                ['CIF/NIF:', data['cliente'].get('DNI', ""), '', '']
             ]
-        else:  # Para presupuesto, se puede omitir el número de factura u otros campos
+        else:  # Para presupuesto
             data_table = [
-                ['Cliente:', data['cliente']['nombre'], 'Fecha emisión:', data['factura']['fecha_emision']],
-                ['Dirección:', calle, 'Vencimiento:', data['factura']['fecha_vencimiento']],
+                ['Cliente:', data['cliente'].get('nombre', ""), 'Fecha emisión:', data['factura'].get('fecha_emision', '')],
+                ['Dirección:', calle, 'Vencimiento:', data['factura'].get('fecha_vencimiento', '')],
                 ['Municipio:', municipio, '', ''],
-                ['CIF/NIF:', data['cliente']['DNI'], '', '']
+                ['CIF/NIF:', data['cliente'].get('DNI', ""), '', '']
             ]
             
         client_table = Table(data_table, colWidths=[20*mm, 80*mm, 30*mm, 40*mm])
@@ -113,13 +124,15 @@ class PDFGenerator:
         # Tabla de conceptos
         items_data = [['Descripción', 'Cantidad', 'Precio']]
         total = 0
-        for item in data['conceptos']:
-            importe = item['cantidad'] * item['precio_unitario']
+        for item in data.get('conceptos', []):
+            cantidad = item.get('cantidad', 0)
+            precio = item.get('precio_unitario', 0)
+            importe = cantidad * precio
             total += importe
             items_data.append([
-                item['descripcion'],
-                str(item['cantidad']),
-                f"{item['precio_unitario']:.2f}€"
+                item.get('descripcion', ''),
+                str(cantidad),
+                f"{precio:.2f}€"
             ])
 
         items_table = Table(items_data, colWidths=[110*mm, 30*mm, 30*mm])
